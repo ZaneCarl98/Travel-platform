@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home</title>
+</head>
+<body>
+    <h1>Travel Platform Home</h1>
+
+    {% if user.is_authenticated %}
+        <p>Welcome, {{ user.username }}!</p>
+        <a href="{% url 'profile' %}">My Profile</a>
+        <a href="{% url 'footprint' %}">My Footprint</a>
+        <a href="{% url 'create_post' %}">Create Post</a>
+        <a href="{% url 'logout' %}">Logout</a>
+    {% else %}
+        <a href="{% url 'login' %}">Login</a>
+        <a href="{% url 'register' %}">Register</a>
+    {% endif %}
+
+    <h2>Search</h2>
+    <form method="get" action="/">
+        <input type="text" name="search" placeholder="Search city..." value="{{ query }}">
+        <button type="submit">Search</button>
+    </form>
+
+    <h2>Cities</h2>
+    <ul>
+        {% for city in cities %}
+            <li>
+                <strong>
+                    <a href="{% url 'city_detail' city.id %}">{{ city.name }}</a>
+                </strong>
+                - {{ city.country }}
+            </li>
+        {% empty %}
+            <li>No cities found.</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Posts</h2>
+    <ul>
+        {% for post in posts %}
+            <li>
+                <strong>
+                    <a href="{% url 'post_detail' post.id %}">{{ post.title }}</a>
+                </strong><br>
+                City: {{ post.city.name }}<br>
+                Author: {{ post.author.username }}<br>
+
+                {% if post.image %}
+                    <img src="{{ post.image.url }}" alt="{{ post.title }}" width="200"><br>
+                {% endif %}
+
+                {{ post.content }}
+            </li>
+            <br>
+        {% empty %}
+            <li>No posts found.</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

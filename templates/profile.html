@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Profile</title>
+</head>
+<body>
+    <h1>My Profile</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ user_form.as_p }}
+        {{ profile_form.as_p }}
+        <button type="submit">Save Changes</button>
+    </form>
+
+    <p><a href="/footprint/">View My Footprint</a></p>
+
+    <a href="/">Back to Home</a>
+</body>
+</html>
