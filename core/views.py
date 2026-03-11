@@ -117,9 +117,16 @@ def profile_view(request):
         user_form = UserUpdateForm(instance=request.user)
         profile_form = ProfileUpdateForm(instance=profile)
 
+    my_posts = Post.objects.filter(author=request.user).order_by('-created_at')
+    my_favorites = Favorite.objects.filter(user=request.user).select_related('post', 'post__city').order_by('-created_at')
+    my_checkins = Checkin.objects.filter(user=request.user).select_related('city').order_by('-checkin_date')
+
     return render(request, 'profile.html', {
         'user_form': user_form,
         'profile_form': profile_form,
+        'my_posts': my_posts,
+        'my_favorites': my_favorites,
+        'my_checkins': my_checkins,
     })
 
 @login_required
