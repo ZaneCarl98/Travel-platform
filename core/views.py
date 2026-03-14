@@ -2,9 +2,25 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from .models import City, Post, Profile, PostLike, Favorite, PostRating, Comment, Checkin
-from .forms import PostForm, UserUpdateForm, ProfileUpdateForm, CommentForm
 from django.db.models import Avg, Count
+
+from .models import (
+    City,
+    Post,
+    Profile,
+    PostLike,
+    Favorite,
+    PostRating,
+    Comment,
+    Checkin,
+)
+from .forms import (
+    PostForm,
+    UserUpdateForm,
+    ProfileUpdateForm,
+    CommentForm,
+)
+
 
 def home(request):
     query = request.GET.get('search', '')
@@ -22,6 +38,7 @@ def home(request):
         'query': query,
     })
 
+
 def register_view(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
@@ -31,6 +48,7 @@ def register_view(request):
     else:
         form = UserCreationForm()
     return render(request, 'register.html', {'form': form})
+
 
 def login_view(request):
     if request.method == 'POST':
@@ -43,9 +61,11 @@ def login_view(request):
         form = AuthenticationForm()
     return render(request, 'login.html', {'form': form})
 
+
 def logout_view(request):
     logout(request)
     return redirect('home')
+
 
 @login_required
 def create_post(request):
@@ -59,6 +79,7 @@ def create_post(request):
     else:
         form = PostForm()
     return render(request, 'create_post.html', {'form': form})
+
 
 def post_detail(request, post_id):
     post = get_object_or_404(Post, id=post_id)
@@ -101,6 +122,80 @@ def post_detail(request, post_id):
         'user_checked_in': user_checked_in,
     })
 
+
+@login_required
+def toggle_like(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    like, created = PostLike.objects.get_or_create(user=request.user, post=post)
+
+    if not created:
+        like.delete()
+
+    return redirect('post_detail', post_id=post.id)
+
+
+@login_required
+def toggle_favorite(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    favorite, created = Favorite.objects.get_or_create(user=request.user, post=post)
+
+    if not created:
+        favorite.delete()
+
+    return redirect('post_detail', post_id=post.id)
+
+
+@login_required
+def rate_post(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+
+    if request.method == 'POST':
+        score = int(request.POST.get('score', 0))
+        if 1 <= score <= 5:
+            rating, created = PostRating.objects.get_or_create(
+                user=request.user,
+                post=post,
+                defaults={'score': score}
+            )
+            if not created:
+                rating.score = score
+                rating.save()
+
+    return redirect('post_detail', post_id=post.id)
+
+
+@login_required
+def add_comment(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+
+    if request.method == 'POST':
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.user = request.user
+            comment.post = post
+            comment.save()
+
+    return redirect('post_detail', post_id=post.id)
+
+
+@login_required
+def add_checkin(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    Checkin.objects.get_or_create(
+        user=request.user,
+        city=post.city,
+        defaults={'post': post}
+    )
+    return redirect('post_detail', post_id=post.id)
+
+
+@login_required
+def footprint_view(request):
+    checkins = Checkin.objects.filter(user=request.user).select_related('city', 'post').order_by('-checkin_date')
+    return render(request, 'footprint.html', {'checkins': checkins})
+
+
 @login_required
 def profile_view(request):
     profile, created = Profile.objects.get_or_create(user=request.user)
@@ -129,73 +224,6 @@ def profile_view(request):
         'my_checkins': my_checkins,
     })
 
-@login_required
-def toggle_like(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    like, created = PostLike.objects.get_or_create(user=request.user, post=post)
-
-    if not created:
-        like.delete()
-
-    return redirect('post_detail', post_id=post.id)
-
-@login_required
-def toggle_favorite(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    favorite, created = Favorite.objects.get_or_create(user=request.user, post=post)
-
-    if not created:
-        favorite.delete()
-
-    return redirect('post_detail', post_id=post.id)
-
-@login_required
-def rate_post(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-
-    if request.method == 'POST':
-        score = int(request.POST.get('score', 0))
-        if 1 <= score <= 5:
-            rating, created = PostRating.objects.get_or_create(
-                user=request.user,
-                post=post,
-                defaults={'score': score}
-            )
-            if not created:
-                rating.score = score
-                rating.save()
-
-    return redirect('post_detail', post_id=post.id)
-
-@login_required
-def add_comment(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-
-    if request.method == 'POST':
-        form = CommentForm(request.POST)
-        if form.is_valid():
-            comment = form.save(commit=False)
-            comment.user = request.user
-            comment.post = post
-            comment.save()
-
-    return redirect('post_detail', post_id=post.id)
-
-@login_required
-def add_checkin(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    Checkin.objects.get_or_create(
-        user=request.user,
-        city=post.city,
-        defaults={'post': post}
-    )
-    return redirect('post_detail', post_id=post.id)
-
-
-@login_required
-def footprint_view(request):
-    checkins = Checkin.objects.filter(user=request.user).select_related('city', 'post').order_by('-checkin_date')
-    return render(request, 'footprint.html', {'checkins': checkins})
 
 def city_detail(request, city_id):
     city = get_object_or_404(City, id=city_id)
@@ -212,4 +240,35 @@ def city_detail(request, city_id):
     return render(request, 'city_detail.html', {
         'city': city,
         'posts': posts,
+    })
+
+
+@login_required
+def edit_post(request, post_id):
+    post = get_object_or_404(Post, id=post_id, author=request.user)
+
+    if request.method == 'POST':
+        form = PostForm(request.POST, request.FILES, instance=post)
+        if form.is_valid():
+            form.save()
+            return redirect('post_detail', post_id=post.id)
+    else:
+        form = PostForm(instance=post)
+
+    return render(request, 'edit_post.html', {
+        'form': form,
+        'post': post,
+    })
+
+
+@login_required
+def delete_post(request, post_id):
+    post = get_object_or_404(Post, id=post_id, author=request.user)
+
+    if request.method == 'POST':
+        post.delete()
+        return redirect('profile')
+
+    return render(request, 'delete_post.html', {
+        'post': post,
     })

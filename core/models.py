@@ -7,6 +7,8 @@ class City(models.Model):
     country = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     image_url = models.URLField(blank=True)
+    latitude = models.FloatField(blank=True, null=True)
+    longitude = models.FloatField(blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -21,8 +23,10 @@ class Post(models.Model):
     image = models.ImageField(upload_to='post_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
         return self.title
+
 
 class PostLike(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -34,6 +38,7 @@ class PostLike(models.Model):
 
     def __str__(self):
         return f"{self.user.username} likes {self.post.title}"
+
 
 class Favorite(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -59,6 +64,7 @@ class PostRating(models.Model):
     def __str__(self):
         return f"{self.user.username} rated {self.post.title} ({self.score})"
 
+
 class Comment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
@@ -67,6 +73,7 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} commented on {self.post.title}"
+
 
 class Checkin(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -81,10 +88,17 @@ class Checkin(models.Model):
     def __str__(self):
         return f"{self.user.username} checked in at {self.city.name}"
 
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    display_name = models.CharField(max_length=100, blank=True)
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     avatar_url = models.URLField(blank=True)
     bio = models.TextField(blank=True)
+    age = models.PositiveIntegerField(blank=True, null=True)
+    gender = models.CharField(max_length=20, blank=True)
+    mbti = models.CharField(max_length=10, blank=True)
+    constellation = models.CharField(max_length=20, blank=True)
 
     def __str__(self):
-        return self.user.username
+        return self.display_name or self.user.username
