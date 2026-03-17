@@ -1,3 +1,5 @@
+# Recommended Python version: 3.14
+# Tested with Python 3.14
 asgiref==3.11.1
 certifi==2026.2.25
 charset-normalizer==3.4.6

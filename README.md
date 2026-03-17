@@ -28,6 +28,18 @@ Main Features
 
 Tech Stack
 
+## Python Version
+
+This project is developed and tested with **Python 3.14**.
+
+Please make sure you are using Python 3.14 when creating the virtual environment:
+
+```bash
+python3.14 -m venv .venv
+source .venv/bin/activate
+python3.14 -m pip install -r requirements.txt
+```
+
 Backend
 	•	Python 3
 	•	Django
