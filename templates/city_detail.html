@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ city.name }}</title>
+</head>
+<body>
+    <h1>{{ city.name }}</h1>
+    <p><strong>Country:</strong> {{ city.country }}</p>
+
+    {% if city.image_url %}
+        <img src="{{ city.image_url }}" alt="{{ city.name }}" width="400">
+    {% endif %}
+
+    <h2>City Introduction</h2>
+    <p>{{ city.description }}</p>
+
+    <h2>Ranked Travel Guides / Routes</h2>
+    <ul>
+        {% for post in posts %}
+            <li>
+                <strong>
+                    <a href="{% url 'post_detail' post.id %}">{{ post.title }}</a>
+                </strong><br>
+                Author: {{ post.author.username }}<br>
+                Average Rating:
+                {% if post.average_rating %}
+                    {{ post.average_rating|floatformat:1 }}
+                {% else %}
+                    No rating yet
+                {% endif %}
+                <br>
+                Likes: {{ post.like_total }}<br>
+                {{ post.content|truncatechars:120 }}
+            </li>
+            <br>
+        {% empty %}
+            <li>No guides available for this city yet.</li>
+        {% endfor %}
+    </ul>
+
+    <a href="/">Back to Home</a>
+</body>
+</html>

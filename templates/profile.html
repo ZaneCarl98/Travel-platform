@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Profile</title>
+</head>
+<body>
+    <h1>My Profile</h1>
+
+    <h2>Profile Information</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ user_form.as_p }}
+        {{ profile_form.as_p }}
+        <button type="submit">Save Changes</button>
+    </form>
+
+    <p>
+        <a href="{% url 'footprint' %}">View My Footprint</a>
+    </p>
+
+    <hr>
+
+    <h2>My Posts</h2>
+    <ul>
+        {% for post in my_posts %}
+            <li>
+                <strong>
+                    <a href="{% url 'post_detail' post.id %}">{{ post.title }}</a>
+                </strong><br>
+                City: {{ post.city.name }}<br>
+                Created: {{ post.created_at }}
+            </li>
+        {% empty %}
+            <li>You have not created any posts yet.</li>
+        {% endfor %}
+    </ul>
+
+    <hr>
+
+    <h2>My Favorites</h2>
+    <ul>
+        {% for favorite in my_favorites %}
+            <li>
+                <strong>
+                    <a href="{% url 'post_detail' favorite.post.id %}">{{ favorite.post.title }}</a>
+                </strong><br>
+                City: {{ favorite.post.city.name }}<br>
+                Favorited at: {{ favorite.created_at }}
+            </li>
+        {% empty %}
+            <li>You have not favorited any posts yet.</li>
+        {% endfor %}
+    </ul>
+
+    <hr>
+
+    <h2>My Check-ins</h2>
+    <ul>
+        {% for checkin in my_checkins %}
+            <li>
+                <strong>{{ checkin.city.name }}</strong> - {{ checkin.city.country }}<br>
+                Checked in at: {{ checkin.checkin_date }}
+            </li>
+        {% empty %}
+            <li>No check-ins yet.</li>
+        {% endfor %}
+    </ul>
+
+    <p><a href="{% url 'home' %}">Back to Home</a></p>
+</body>
+</html>

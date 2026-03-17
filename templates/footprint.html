@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Footprint</title>
+</head>
+<body>
+    <h1>My Footprint</h1>
+
+    <ul>
+        {% for checkin in checkins %}
+            <li>
+                <strong>{{ checkin.city.name }}</strong> - {{ checkin.city.country }}<br>
+                Checked in at: {{ checkin.checkin_date }}<br>
+                {% if checkin.post %}
+                    Related post:
+                    <a href="{% url 'post_detail' checkin.post.id %}">{{ checkin.post.title }}</a>
+                {% endif %}
+            </li>
+        {% empty %}
+            <li>No check-ins yet.</li>
+        {% endfor %}
+    </ul>
+
+    <a href="/">Back to Home</a>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ post.title }}</title>
+</head>
+<body>
+    <h1>{{ post.title }}</h1>
+
+    <p><strong>City:</strong> {{ post.city.name }}</p>
+    <p><strong>Author:</strong> {{ post.author.username }}</p>
+    <p><strong>Created:</strong> {{ post.created_at }}</p>
+
+    {% if post.image %}
+    <img src="{{ post.image.url }}" alt="{{ post.title }}" width="400">
+    {% endif %}
+
+    <h2>Content</h2>
+    <p>{{ post.content }}</p>
+
+    <h2>Route</h2>
+    <p>{{ post.route_text }}</p>
+
+    <p><strong>Likes:</strong> {{ like_count }}</p>
+    <p><strong>Favorites:</strong> {{ favorite_count }}</p>
+    <p><strong>Average Rating:</strong> {{ average_rating|floatformat:1 }} / 5 ({{ rating_count }} ratings)</p>
+
+    {% if user.is_authenticated %}
+        <form method="post" action="{% url 'toggle_like' post.id %}">
+            {% csrf_token %}
+            <button type="submit">
+                {% if user_liked %}Unlike{% else %}Like{% endif %}
+            </button>
+        </form>
+
+        <form method="post" action="{% url 'toggle_favorite' post.id %}">
+            {% csrf_token %}
+            <button type="submit">
+                {% if user_favorited %}Unfavorite{% else %}Favorite{% endif %}
+            </button>
+        </form>
+
+        <form method="post" action="{% url 'rate_post' post.id %}">
+            {% csrf_token %}
+            <label for="score">Rate this post:</label>
+            <select name="score" id="score">
+                <option value="1" {% if user_rating == 1 %}selected{% endif %}>1</option>
+                <option value="2" {% if user_rating == 2 %}selected{% endif %}>2</option>
+                <option value="3" {% if user_rating == 3 %}selected{% endif %}>3</option>
+                <option value="4" {% if user_rating == 4 %}selected{% endif %}>4</option>
+                <option value="5" {% if user_rating == 5 %}selected{% endif %}>5</option>
+            </select>
+            <button type="submit">Submit Rating</button>
+        </form>
+
+        {% if user_checked_in %}
+            <p>You have already checked in to this city.</p>
+        {% else %}
+            <form method="post" action="{% url 'add_checkin' post.id %}">
+                {% csrf_token %}
+                <button type="submit">Check In</button>
+            </form>
+        {% endif %}
+
+        <h2>Comments</h2>
+        <form method="post" action="{% url 'add_comment' post.id %}">
+            {% csrf_token %}
+            {{ comment_form.as_p }}
+            <button type="submit">Add Comment</button>
+        </form>
+    {% else %}
+        <a href="/login/">Login to interact with this post</a>
+    {% endif %}
+
+    <ul>
+        {% for comment in comments %}
+            <li>
+                <strong>{{ comment.user.username }}</strong>
+                ({{ comment.created_at }})<br>
+                {{ comment.content }}
+            </li>
+        {% empty %}
+            <li>No comments yet.</li>
+        {% endfor %}
+    </ul>
+
+    <a href="/">Back to Home</a>
+</body>
+</html>
