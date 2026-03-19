@@ -8,8 +8,23 @@ from .models import City, Post, PostLike, Favorite, PostRating, Checkin
 User = get_user_model()
 
 
+# =========================
+# Authentication API Tests
+# =========================
+
+
 class AuthApiTests(APITestCase):
+    """Test cases for authentication APIs including registration and login."""
+    
     def test_register_then_login_returns_token_and_user(self):
+        """Test user registration followed by login returns valid token and user data.
+        
+        Steps:
+        1. Register a new user with email, password, and display_name
+        2. Verify response contains token and user data
+        3. Login with the same credentials
+        4. Verify login response also contains token and user data
+        """
         register_url = reverse("api_register")
         payload = {
             "email": "newuser@example.com",
@@ -33,14 +48,34 @@ class AuthApiTests(APITestCase):
         self.assertIn("user", res2.data)
 
     def test_login_wrong_password_returns_400(self):
+        """Test login with incorrect password returns 400 error.
+        
+        Steps:
+        1. Create a user with known credentials
+        2. Attempt login with wrong password
+        3. Verify response status code is 400
+        """
         user = User.objects.create_user(username="u1", email="u1@example.com", password="RightPass123!")
         login_url = reverse("api_login")
         res = self.client.post(login_url, {"email": user.email, "password": "wrong"}, format="json")
         self.assertEqual(res.status_code, 400)
 
 
+# =========================
+# City API Tests
+# =========================
+
+
 class CityApiTests(APITestCase):
+    """Test cases for city-related APIs."""
+    
     def test_popular_cities_sorted_by_post_count_desc(self):
+        """Test popular cities endpoint returns cities sorted by post count descending.
+        
+        Creates 3 cities with different post counts and verifies:
+        - City with most posts appears first
+        - Cities are ordered by post count descending
+        """
         c1 = City.objects.create(name="A", country="X")
         c2 = City.objects.create(name="B", country="X")
         c3 = City.objects.create(name="C", country="X")
@@ -58,6 +93,13 @@ class CityApiTests(APITestCase):
         self.assertTrue(ids.index(c2.id) < ids.index(c3.id))
 
     def test_search_cities_by_name(self):
+        """Test city search functionality filters by name substring.
+        
+        Steps:
+        1. Create multiple cities
+        2. Search with partial name match
+        3. Verify only matching city is returned
+        """
         City.objects.create(name="London", country="UK")
         City.objects.create(name="Paris", country="FR")
         url = reverse("api_search_cities")
@@ -67,8 +109,25 @@ class CityApiTests(APITestCase):
         self.assertEqual(res.data[0]["name"], "London")
 
 
+# =========================
+# Post API Tests
+# =========================
+
+
 class PostApiTests(APITestCase):
+    """Test cases for post-related APIs."""
+    
     def _auth_as(self, email="t@example.com", username="tester", password="Pass123!@#"):
+        """Helper method to authenticate user and set authorization header.
+        
+        Args:
+            email: User email address
+            username: Username
+            password: User password
+            
+        Returns:
+            Created user instance
+        """
         user = User.objects.create_user(username=username, email=email, password=password)
         login_url = reverse("api_login")
         res = self.client.post(login_url, {"email": email, "password": password}, format="json")
@@ -77,11 +136,24 @@ class PostApiTests(APITestCase):
         return user
 
     def test_create_post_requires_auth(self):
+        """Test that creating a post requires authentication.
+        
+        Verifies unauthenticated requests to create post endpoint
+        return 401 or 403 status code.
+        """
         url = reverse("api_create_post")
         res = self.client.post(url, {"title": "t", "content": "c", "city_name": "Tokyo"}, format="json")
         self.assertIn(res.status_code, (401, 403))
 
     def test_create_post_creates_city_if_needed(self):
+        """Test creating a post auto-creates city if it doesn't exist.
+        
+        Steps:
+        1. Authenticate as user
+        2. Create post with non-existent city name
+        3. Verify post is created successfully
+        4. Verify city is auto-created
+        """
         self._auth_as()
         url = reverse("api_create_post")
         payload = {
@@ -98,6 +170,14 @@ class PostApiTests(APITestCase):
         self.assertTrue(City.objects.filter(name="NewCityName").exists())
 
     def test_toggle_like_creates_and_deletes_like(self):
+        """Test toggle like functionality creates and deletes likes.
+        
+        Steps:
+        1. Authenticate and create a post
+        2. First toggle should create like
+        3. Second toggle should delete like
+        4. Verify like existence after each operation
+        """
         user = self._auth_as()
         city = City.objects.create(name="Tokyo", country="JP")
         post = Post.objects.create(author=user, city=city, title="t", content="c")
@@ -112,6 +192,14 @@ class PostApiTests(APITestCase):
         self.assertFalse(PostLike.objects.filter(user=user, post=post).exists())
 
     def test_rate_post_validates_range_and_persists(self):
+        """Test post rating validates score range and persists correctly.
+        
+        Steps:
+        1. Authenticate and create a post
+        2. Try invalid score (6) - should fail
+        3. Submit valid score (5) - should succeed
+        4. Verify rating is saved in database
+        """
         user = self._auth_as()
         city = City.objects.create(name="Tokyo", country="JP")
         post = Post.objects.create(author=user, city=city, title="t", content="c")
@@ -125,6 +213,14 @@ class PostApiTests(APITestCase):
         self.assertTrue(PostRating.objects.filter(user=user, post=post, score=5).exists())
 
     def test_favorite_toggle_creates_and_deletes(self):
+        """Test toggle favorite functionality creates and deletes favorites.
+        
+        Steps:
+        1. Authenticate and create a post
+        2. First toggle should create favorite
+        3. Second toggle should delete favorite
+        4. Verify favorite existence after each operation
+        """
         user = self._auth_as()
         city = City.objects.create(name="Tokyo", country="JP")
         post = Post.objects.create(author=user, city=city, title="t", content="c")
@@ -139,8 +235,25 @@ class PostApiTests(APITestCase):
         self.assertFalse(Favorite.objects.filter(user=user, post=post).exists())
 
 
+# =========================
+# Check-in API Tests
+# =========================
+
+
 class CheckinApiTests(APITestCase):
+    """Test cases for check-in related APIs."""
+    
     def _auth_as(self, email="c@example.com", username="checkinuser", password="Pass123!@#"):
+        """Helper method to authenticate user and set authorization header.
+        
+        Args:
+            email: User email address
+            username: Username
+            password: User password
+            
+        Returns:
+            Created user instance
+        """
         user = User.objects.create_user(username=username, email=email, password=password)
         login_url = reverse("api_login")
         res = self.client.post(login_url, {"email": email, "password": password}, format="json")
@@ -149,6 +262,15 @@ class CheckinApiTests(APITestCase):
         return user
 
     def test_checkin_unique_per_user_and_city(self):
+        """Test check-in uniqueness constraint per user and city combination.
+        
+        Steps:
+        1. Authenticate and create a city
+        2. Create first check-in - should succeed
+        3. Create second check-in for same city - should update existing
+        4. Verify only one check-in record exists
+        5. Verify note field is updated
+        """
         user = self._auth_as()
         city = City.objects.create(name="Paris", country="FR")
         url = reverse("api_create_checkin")

@@ -16,13 +16,35 @@ from .utils import geocode_city
 User = get_user_model()
 
 
+# =========================
+# Helper Functions
+# =========================
+
+
 def require_auth(request):
+    """Check if user is authenticated and return error response if not.
+    
+    Args:
+        request: DRF request object
+        
+    Returns:
+        Response with 401 status if not authenticated, None otherwise
+    """
     if not request.user or not request.user.is_authenticated:
         return Response({"message": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
     return None
 
 
 def serialize_user(user, request=None):
+    """Convert User object to dictionary with profile information.
+    
+    Args:
+        user: User instance to serialize
+        request: Optional request object for building absolute URLs
+        
+    Returns:
+        Dictionary containing user and profile data
+    """
     profile, _ = Profile.objects.get_or_create(user=user)
 
     avatar_url = ""
@@ -48,6 +70,14 @@ def serialize_user(user, request=None):
 
 
 def serialize_city(city):
+    """Convert City object to dictionary.
+    
+    Args:
+        city: City instance to serialize
+        
+    Returns:
+        Dictionary containing city data including coordinates
+    """
     return {
         "id": city.id,
         "name": city.name,
@@ -60,6 +90,15 @@ def serialize_city(city):
 
 
 def serialize_post(post, request=None):
+    """Convert Post object to dictionary with related data.
+    
+    Args:
+        post: Post instance to serialize
+        request: Optional request object for building absolute URLs
+        
+    Returns:
+        Dictionary containing post data with author, city, ratings, and user interactions
+    """
     user = request.user if request and request.user.is_authenticated else None
 
     average_rating = PostRating.objects.filter(post=post).aggregate(avg=Avg("score"))["avg"]
@@ -115,6 +154,15 @@ def serialize_post(post, request=None):
 
 
 def serialize_comment(comment, request=None):
+    """Convert Comment object to dictionary with user information.
+    
+    Args:
+        comment: Comment instance to serialize
+        request: Optional request object for building absolute URLs
+        
+    Returns:
+        Dictionary containing comment data with minimal user info
+    """
     return {
         "id": comment.id,
         "post_id": comment.post.id,
@@ -130,6 +178,14 @@ def serialize_comment(comment, request=None):
 
 
 def serialize_checkin(checkin):
+    """Convert Checkin object to dictionary with city information.
+    
+    Args:
+        checkin: Checkin instance to serialize
+        
+    Returns:
+        Dictionary containing check-in data with associated city
+    """
     return {
         "id": checkin.id,
         "user_id": checkin.user.id,
@@ -143,6 +199,16 @@ def serialize_checkin(checkin):
 
 
 def paginate_queryset(queryset, page, page_size=10):
+    """Paginate a queryset and return paginated results.
+    
+    Args:
+        queryset: Django QuerySet to paginate
+        page: Page number (1-indexed)
+        page_size: Number of items per page (default: 10)
+        
+    Returns:
+        Dictionary with paginated data, total count, and pagination info
+    """
     paginator = Paginator(queryset, page_size)
     current_page = paginator.get_page(page)
     return {
@@ -157,8 +223,21 @@ def paginate_queryset(queryset, page, page_size=10):
 # Auth APIs
 # =========================
 
+
 @api_view(['POST'])
 def api_register(request):
+    """Register a new user account.
+    
+    Required fields: email, password, display_name
+    Creates User and Profile instances, returns JWT token
+    
+    Args:
+        request: DRF request object
+        
+    Returns:
+        Response with access token and user data on success,
+        error message on failure
+    """
     email = request.data.get("email", "").strip()
     password = request.data.get("password", "")
     display_name = request.data.get("display_name", "").strip()
@@ -192,6 +271,18 @@ def api_register(request):
 
 @api_view(['POST'])
 def api_login(request):
+    """Authenticate user and return JWT token.
+    
+    Required fields: email, password
+    Uses Django authentication backend
+    
+    Args:
+        request: DRF request object
+        
+    Returns:
+        Response with access token and user data on success,
+        error message on invalid credentials
+    """
     email = request.data.get("email", "").strip()
     password = request.data.get("password", "")
 
@@ -218,8 +309,19 @@ def api_login(request):
 # City APIs
 # =========================
 
+
 @api_view(['GET'])
 def api_popular_cities(request):
+    """Get top 6 cities ordered by number of posts.
+    
+    Annotates cities with post count and returns most popular ones.
+    
+    Args:
+        request: DRF request object
+        
+    Returns:
+        List of city objects with basic information
+    """
     cities = (
         City.objects.annotate(post_count=Count('post'))
         .order_by('-post_count', 'name')[:6]
@@ -230,6 +332,17 @@ def api_popular_cities(request):
 
 @api_view(['GET'])
 def api_search_cities(request):
+    """Search cities by name.
+    
+    Query parameter: q (search query, optional)
+    Returns all cities if no query provided.
+    
+    Args:
+        request: DRF request object
+        
+    Returns:
+        List of matching city objects
+    """
     query = request.GET.get("q", "").strip()
     cities = City.objects.all()
 
@@ -242,12 +355,34 @@ def api_search_cities(request):
 
 @api_view(['GET'])
 def api_city_detail(request, city_id):
+    """Get details of a specific city.
+    
+    Args:
+        request: DRF request object
+        city_id: Primary key of the city
+        
+    Returns:
+        City object with full details
+    """
     city = get_object_or_404(City, id=city_id)
     return Response(serialize_city(city))
 
 
 @api_view(['GET'])
 def api_city_posts(request, city_id):
+    """Get posts for a specific city with pagination and sorting.
+    
+    Args:
+        request: DRF request object
+        city_id: Primary key of the city
+        
+    Query parameters:
+        sort: 'rating' (default) or 'latest'
+        page: Page number (default: 1)
+        
+    Returns:
+        Paginated list of posts for the city
+    """
     city = get_object_or_404(City, id=city_id)
     sort = request.GET.get("sort", "rating")
     page = int(request.GET.get("page", 1))
@@ -271,8 +406,18 @@ def api_city_posts(request, city_id):
 # Post APIs
 # =========================
 
+
 @api_view(['GET'])
 def api_post_detail(request, post_id):
+    """Get detailed information about a specific post.
+    
+    Args:
+        request: DRF request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Post object with author, city, ratings, and check-in status
+    """
     post = get_object_or_404(Post, id=post_id)
     post_data = serialize_post(post, request)
 
@@ -288,6 +433,22 @@ def api_post_detail(request, post_id):
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def api_create_post(request):
+    """Create a new travel post.
+    
+    Authentication required.
+    Supports image upload and route information.
+    
+    Required fields: title, content, city_name
+    Optional fields: route_text, route_stops, total_days, images
+    
+    Auto-creates city if it doesn't exist and geocodes coordinates.
+    
+    Args:
+        request: DRF request object
+        
+    Returns:
+        Created post object on success
+    """
     title = request.data.get("title", "").strip()
     content = request.data.get("content", "").strip()
     city_name = request.data.get("city_name", "").strip()
@@ -341,6 +502,18 @@ def api_create_post(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def api_toggle_like(request, post_id):
+    """Toggle like status on a post.
+    
+    Authentication required.
+    Creates like if not exists, deletes if exists.
+    
+    Args:
+        request: DRF request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Current like status and total likes count
+    """
     post = get_object_or_404(Post, id=post_id)
     like, created = PostLike.objects.get_or_create(user=request.user, post=post)
 
@@ -359,6 +532,18 @@ def api_toggle_like(request, post_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def api_toggle_favorite(request, post_id):
+    """Toggle favorite status on a post.
+    
+    Authentication required.
+    Creates favorite if not exists, deletes if exists.
+    
+    Args:
+        request: DRF request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Current favorite status
+    """
     post = get_object_or_404(Post, id=post_id)
     favorite, created = Favorite.objects.get_or_create(user=request.user, post=post)
 
@@ -375,6 +560,21 @@ def api_toggle_favorite(request, post_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def api_rate_post(request, post_id):
+    """Rate a post with score 1-5.
+    
+    Authentication required.
+    Creates or updates rating for the current user.
+    
+    Args:
+        request: DRF request object
+        post_id: Primary key of the post
+        
+    Request data:
+        score: Integer between 1 and 5
+        
+    Returns:
+        Average rating and user's rating
+    """
     post = get_object_or_404(Post, id=post_id)
     try:
         score = int(request.data.get("score", 0))
@@ -402,6 +602,25 @@ def api_rate_post(request, post_id):
 
 @api_view(['GET', 'POST'])
 def api_post_comments(request, post_id):
+    """Get comments for a post or add a new comment.
+    
+    GET: Returns paginated comments (no auth required)
+    POST: Creates new comment (auth required)
+    
+    Args:
+        request: DRF request object
+        post_id: Primary key of the post
+        
+    Query parameters (GET):
+        page: Page number (default: 1)
+        
+    Request data (POST):
+        content: Comment text (required)
+        
+    Returns:
+        GET: Paginated list of comments
+        POST: Created comment object
+    """
     post = get_object_or_404(Post, id=post_id)
 
     if request.method == 'GET':
@@ -426,9 +645,22 @@ def api_post_comments(request, post_id):
     )
     return Response(serialize_comment(comment, request), status=status.HTTP_201_CREATED)
 
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def api_delete_post(request, post_id):
+    """Delete a post (only by author).
+    
+    Authentication required.
+    Users can only delete their own posts.
+    
+    Args:
+        request: DRF request object
+        post_id: Primary key of the post to delete
+        
+    Returns:
+        Success message on deletion
+    """
     post = get_object_or_404(Post, id=post_id)
 
     if post.author != request.user:
@@ -437,12 +669,23 @@ def api_delete_post(request, post_id):
     post.delete()
     return Response({"message": "Post deleted successfully"}, status=status.HTTP_200_OK)
 
+
 # =========================
 # Profile APIs
 # =========================
 
+
 @api_view(['GET'])
 def api_user_profile(request, user_id):
+    """Get user profile information.
+    
+    Args:
+        request: DRF request object
+        user_id: Primary key of the user
+        
+    Returns:
+        User object with profile data
+    """
     user = get_object_or_404(User, id=user_id)
     return Response(serialize_user(user, request))
 
@@ -451,6 +694,21 @@ def api_user_profile(request, user_id):
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def api_update_profile(request):
+    """Update current user's profile information.
+    
+    Authentication required.
+    Supports partial updates (PATCH) and full updates (PUT).
+    Handles avatar image upload.
+    
+    Updatable fields:
+        display_name, bio, age, gender, mbti, constellation, avatar
+    
+    Args:
+        request: DRF request object
+        
+    Returns:
+        Updated user object with profile data
+    """
     user = request.user
     profile, _ = Profile.objects.get_or_create(user=user)
 
@@ -499,6 +757,15 @@ def api_update_profile(request):
 
 @api_view(['GET'])
 def api_user_posts(request, user_id):
+    """Get all posts by a specific user.
+    
+    Args:
+        request: DRF request object
+        user_id: Primary key of the user
+        
+    Returns:
+        List of posts authored by the user, ordered by creation date
+    """
     user = get_object_or_404(User, id=user_id)
     posts = (
         Post.objects.filter(author=user)
@@ -510,6 +777,15 @@ def api_user_posts(request, user_id):
 
 @api_view(['GET'])
 def api_user_favorites(request, user_id):
+    """Get all posts favorited by a specific user.
+    
+    Args:
+        request: DRF request object
+        user_id: Primary key of the user
+        
+    Returns:
+        List of favorited posts ordered by favorite creation date
+    """
     user = get_object_or_404(User, id=user_id)
     favorites = (
         Favorite.objects.filter(user=user)
@@ -523,9 +799,29 @@ def api_user_favorites(request, user_id):
 # Check-in APIs
 # =========================
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def api_create_checkin(request):
+    """Create a check-in at a city.
+    
+    Authentication required.
+    Records user's visit to a city with optional note and post reference.
+    
+    Required fields: city_id
+    Optional fields: post_id, note
+    
+    Args:
+        request: DRF request object
+        
+    Request data:
+        city_id: Primary key of the city
+        post_id: Optional primary key of associated post
+        note: Optional note about the check-in
+        
+    Returns:
+        Created check-in object with city information
+    """
     city_id = request.data.get("city_id")
     post_id = request.data.get("post_id")
     note = request.data.get("note", "")
@@ -559,6 +855,15 @@ def api_create_checkin(request):
 
 @api_view(['GET'])
 def api_user_checkins(request, user_id):
+    """Get all check-ins for a specific user.
+    
+    Args:
+        request: DRF request object
+        user_id: Primary key of the user
+        
+    Returns:
+        List of user's check-ins with city information, ordered by date
+    """
     user = get_object_or_404(User, id=user_id)
     checkins = Checkin.objects.filter(user=user).select_related("city", "post").order_by("-checkin_date")
     data = [serialize_checkin(checkin) for checkin in checkins]

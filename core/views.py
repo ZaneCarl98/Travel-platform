@@ -22,7 +22,20 @@ from .forms import (
 )
 
 
+# =========================
+# Home & Auth Views
+# =========================
+
+
 def home(request):
+    """Render home page with cities and posts, supporting search functionality.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Rendered home.html template with cities, posts, and search query
+    """
     query = request.GET.get('search', '')
 
     cities = City.objects.all()
@@ -40,6 +53,14 @@ def home(request):
 
 
 def register_view(request):
+    """Handle user registration with Django's built-in UserCreationForm.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Rendered register.html template with registration form
+    """
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
@@ -51,6 +72,14 @@ def register_view(request):
 
 
 def login_view(request):
+    """Handle user login with Django's built-in AuthenticationForm.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Rendered login.html template with authentication form
+    """
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
@@ -63,12 +92,33 @@ def login_view(request):
 
 
 def logout_view(request):
+    """Log out current user and redirect to home page.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Redirect to home page
+    """
     logout(request)
     return redirect('home')
 
 
+# =========================
+# Post Management Views
+# =========================
+
+
 @login_required
 def create_post(request):
+    """Create a new travel post (requires authentication).
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Rendered create_post.html template with post form
+    """
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
@@ -82,6 +132,16 @@ def create_post(request):
 
 
 def post_detail(request, post_id):
+    """Display detailed information about a specific post.
+    
+    Args:
+        request: HTTP request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Rendered post_detail.html template with post details, ratings,
+        comments, and user interaction status
+    """
     post = get_object_or_404(Post, id=post_id)
     like_count = PostLike.objects.filter(post=post).count()
     favorite_count = Favorite.objects.filter(post=post).count()
@@ -125,6 +185,17 @@ def post_detail(request, post_id):
 
 @login_required
 def toggle_like(request, post_id):
+    """Toggle like status on a post (requires authentication).
+    
+    Creates a like if it doesn't exist, deletes it if it does.
+    
+    Args:
+        request: HTTP request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Redirect to post detail page
+    """
     post = get_object_or_404(Post, id=post_id)
     like, created = PostLike.objects.get_or_create(user=request.user, post=post)
 
@@ -136,6 +207,17 @@ def toggle_like(request, post_id):
 
 @login_required
 def toggle_favorite(request, post_id):
+    """Toggle favorite status on a post (requires authentication).
+    
+    Creates a favorite if it doesn't exist, deletes it if it does.
+    
+    Args:
+        request: HTTP request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Redirect to post detail page
+    """
     post = get_object_or_404(Post, id=post_id)
     favorite, created = Favorite.objects.get_or_create(user=request.user, post=post)
 
@@ -147,6 +229,17 @@ def toggle_favorite(request, post_id):
 
 @login_required
 def rate_post(request, post_id):
+    """Rate a post with score 1-5 (requires authentication).
+    
+    Creates or updates rating for the current user.
+    
+    Args:
+        request: HTTP request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Redirect to post detail page
+    """
     post = get_object_or_404(Post, id=post_id)
 
     if request.method == 'POST':
@@ -166,6 +259,15 @@ def rate_post(request, post_id):
 
 @login_required
 def add_comment(request, post_id):
+    """Add a comment to a post (requires authentication).
+    
+    Args:
+        request: HTTP request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Redirect to post detail page
+    """
     post = get_object_or_404(Post, id=post_id)
 
     if request.method == 'POST':
@@ -181,6 +283,17 @@ def add_comment(request, post_id):
 
 @login_required
 def add_checkin(request, post_id):
+    """Check in at a city associated with a post (requires authentication).
+    
+    Creates a check-in record for the current user at the post's city.
+    
+    Args:
+        request: HTTP request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Redirect to post detail page
+    """
     post = get_object_or_404(Post, id=post_id)
     Checkin.objects.get_or_create(
         user=request.user,
@@ -190,14 +303,37 @@ def add_checkin(request, post_id):
     return redirect('post_detail', post_id=post.id)
 
 
+# =========================
+# User Profile & Footprint Views
+# =========================
+
+
 @login_required
 def footprint_view(request):
+    """Display user's travel footprint with all check-ins (requires authentication).
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Rendered footprint.html template with user's check-in history
+    """
     checkins = Checkin.objects.filter(user=request.user).select_related('city', 'post').order_by('-checkin_date')
     return render(request, 'footprint.html', {'checkins': checkins})
 
 
 @login_required
 def profile_view(request):
+    """Display and update user profile (requires authentication).
+    
+    Shows user's posts, favorites, and check-ins along with profile edit form.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Rendered profile.html template with profile forms and user data
+    """
     profile, created = Profile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
@@ -225,7 +361,21 @@ def profile_view(request):
     })
 
 
+# =========================
+# City & Post Management Views
+# =========================
+
+
 def city_detail(request, city_id):
+    """Display city details with associated posts sorted by rating.
+    
+    Args:
+        request: HTTP request object
+        city_id: Primary key of the city
+        
+    Returns:
+        Rendered city_detail.html template with city info and posts
+    """
     city = get_object_or_404(City, id=city_id)
 
     posts = (
@@ -245,6 +395,17 @@ def city_detail(request, city_id):
 
 @login_required
 def edit_post(request, post_id):
+    """Edit an existing post (requires authentication and ownership).
+    
+    Only the post author can edit the post.
+    
+    Args:
+        request: HTTP request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Rendered edit_post.html template with post form
+    """
     post = get_object_or_404(Post, id=post_id, author=request.user)
 
     if request.method == 'POST':
@@ -263,6 +424,17 @@ def edit_post(request, post_id):
 
 @login_required
 def delete_post(request, post_id):
+    """Delete a post (requires authentication and ownership).
+    
+    Only the post author can delete the post.
+    
+    Args:
+        request: HTTP request object
+        post_id: Primary key of the post
+        
+    Returns:
+        Rendered delete_post.html template or redirect to profile after deletion
+    """
     post = get_object_or_404(Post, id=post_id, author=request.user)
 
     if request.method == 'POST':
